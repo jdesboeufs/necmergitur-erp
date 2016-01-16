@@ -34,6 +34,7 @@ function loadData(db) {
                             type: 'Point',
                             coordinates: [parseFloat(data.lon), parseFloat(data.lat)]
                         },
+                        activity: data.activite,
                         abstract: 'No description',
                         type: data.type,
                         category: data.categorie
