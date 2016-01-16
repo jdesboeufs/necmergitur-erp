@@ -9,9 +9,7 @@ const mongoConnection = MongoClient.connect(process.env.MONGODB_URL || 'mongodb:
 
 mongoConnection.then(() => debug('connection established'));
 
-const sourceFiles = [
-        'https://raw.githubusercontent.com/IGNF/hackathon-necmergitur/master/collecte/CSV/J.csv'
-];
+const types = ['J', 'L', 'O', 'PA', 'R', 'S', 'U', 'V', 'X'];
 
 function cleanData(db) {
     const clean = db.collection('erp').remove({});
@@ -20,28 +18,34 @@ function cleanData(db) {
 }
 
 function loadData(db) {
-    debug('will load %d datasets', sourceFiles.length);
-    return new Promise((resolve, reject) => {
-        request(sourceFiles[0])
-            .pipe(parse({ delimiter: ';', columns: true }))
-            .pipe(through2.obj((data, enc, callback) => {
-                debug('import %s', data.nom);
-                db.collection('erp').insertOne({
-                    label: data.nom,
-                    addresse: data.adresse,
-                    position: {
-                        type: 'Point',
-                        coordinates: [parseFloat(data.lon), parseFloat(data.lat)]
-                    },
-                    abstract: 'No description'
-                }, callback);
-            }))
-            .on('error', err => reject(err))
-            .on('end', () => {
-                debug('dataset loaded');
-                resolve();
-            })
-            .resume();
+    return Promise.each(types, type => {
+        return new Promise((resolve, reject) => {
+            debug('will load type: %s', type);
+            request(`https://raw.githubusercontent.com/IGNF/hackathon-necmergitur/master/collecte/CSV/${type}.csv`)
+                .pipe(parse({ delimiter: ';', columns: true }))
+                .pipe(through2.obj((data, enc, callback) => {
+                    if (!data.nom) return callback();
+                    if (isNaN(parseFloat(data.lon)) || isNaN(parseFloat(data.lat))) return callback();
+                    debug('import %s', data.nom);
+                    db.collection('erp').insertOne({
+                        label: data.nom,
+                        addresse: data.adresse,
+                        position: {
+                            type: 'Point',
+                            coordinates: [parseFloat(data.lon), parseFloat(data.lat)]
+                        },
+                        abstract: 'No description',
+                        type: data.type,
+                        category: data.categorie
+                    }, callback);
+                }))
+                .on('error', err => reject(err))
+                .on('end', () => {
+                    debug('dataset loaded');
+                    resolve();
+                })
+                .resume();
+        });
     });
 }
 
