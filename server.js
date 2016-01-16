@@ -25,6 +25,7 @@ app.use(function injectMongoDBDatabaseInstance(req, res, next) {
 });
 
 app.get('/erp', function (req, res, next) {
+    if (!req.query.bbox) return res.status(400).send({ code: 400, message: 'No bbox provided' });
     req.db.collection('erp').find({
         position: {
             $geoWithin: {
