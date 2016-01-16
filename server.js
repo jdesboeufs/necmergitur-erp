@@ -2,6 +2,7 @@ const express = require('express');
 const MongoClient = require('mongodb').MongoClient;
 const morgan = require('morgan');
 const cors = require('cors');
+const bboxPolygon = require('turf-bbox-polygon');
 
 const mongoConnection = MongoClient.connect(process.env.MONGODB_URL || 'mongodb://localhost/necmergitur-erp');
 const app = express();
@@ -26,12 +27,8 @@ app.use(function injectMongoDBDatabaseInstance(req, res, next) {
 app.get('/erp', function (req, res, next) {
     req.db.collection('erp').find({
         position: {
-            $near: {
-                $geometry: {
-                    type: 'Point',
-                    coordinates: [parseFloat(req.query.lon), parseFloat(req.query.lat)]
-                },
-                $maxDistance: 1200
+            $geoWithin: {
+                $geometry: bboxPolygon(req.query.bbox.split(',').map(coord => parseFloat(coord))).geometry
             }
         }
     }).toArray().then(function (results) {
