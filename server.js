@@ -3,6 +3,7 @@ const MongoClient = require('mongodb').MongoClient;
 const morgan = require('morgan');
 const cors = require('cors');
 const bboxPolygon = require('turf-bbox-polygon');
+const _ = require('lodash');
 
 const mongoConnection = MongoClient.connect(process.env.MONGODB_URL || 'mongodb://localhost/necmergitur-erp');
 const app = express();
@@ -33,6 +34,16 @@ app.get('/erp', function (req, res, next) {
             }
         }
     }).toArray().then(function (results) {
+        if (req.query.format === 'geojson') {
+            return res.send({
+                type: 'FeatureCollection',
+                features: results.map(erp => ({
+                    type: 'Feature',
+                    geometry: erp.position,
+                    properties: _.omit(erp, 'position')
+                }))
+            });
+        }
         res.send(results);
     }).catch(next);
 });
